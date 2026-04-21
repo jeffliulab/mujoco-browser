@@ -1,0 +1,36 @@
+{
+  "name": "mujoco-browser",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Route A: full in-browser port of the Anima BCI demo (MuJoCo WASM + Anima L0-L5 + BT + 10 skills, all in TS, zero server, GitHub Pages deployable)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "fetch-vendor": "bash scripts/fetch-vendor.sh",
+    "bundle-assets": "tsx scripts/bundle-assets.ts",
+    "smoke": "tsx scripts/smoke-mujoco.ts"
+  },
+  "dependencies": {
+    "mujoco-js": "^0.0.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.161.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/three": "^0.161.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.3.1",
+    "vitest": "^1.6.0"
+  }
+}

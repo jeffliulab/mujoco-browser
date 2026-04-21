@@ -1,0 +1,37 @@
+mujoco-browser 版本总览
+=========================
+
+定位：把 human-brain-interface-demo/demo/ 的 Anima BCI 演示全部浏览器化，
+走静态 GitHub Pages 部署，零服务器、零 API key。
+
+已完成
+  V0.1   浏览器可行性 + 物理可跑通
+         - Vite + React + TS 脚手架搭起
+         - mujoco-js 0.0.7 接入（WASM embedded as base64，无需 Vite wasm 插件）
+         - simple.xml / humanoid.xml / stretch_mj_3.3.0.xml / hospital_ward_min.xml
+           四个场景 headless smoke 全过
+         - stretch_mujoco 147 文件打包进 public/assets/stretch/
+         - manifest.json + BootOptions.assetBundleUrl：浏览器按 manifest seed VFS
+         - hospital_ward_min.xml 降级方案：所有 madduck 家具 mesh 替换成
+           primitive box/capsule/cylinder，保留拓扑（49 bodies / 41 nq / 38 nv / 10 cam）
+         （2026-04-21 归档，见 dev-log/V0.1-开发日志.md）
+
+当前开发
+  V0.2   Three.js 渲染器 + 机器人 mesh（进行中）
+         详细任务 → 开发进度与待办事项.md
+         目标：
+           - Phase 1a 渲染器代码已就绪（mujocoRenderer.ts），用户视觉确认待完成
+           - Phase 1b OBJ/STL 加载器替换 3cm 占位小球为真实机器人网格
+
+计划中
+  V0.3P  物理 Web Worker（SharedArrayBuffer + postMessage fallback）
+  V0.4P  行为树引擎（py_trees-lite TS 版）+ Anima L0–L5 端口
+  V0.5P  10 个技能 port（locate / navigate / grasp / lift / deliver / release /
+          goto_bed / toggle_light / toggle_device / call_help）
+  V0.6P  L1 关键词映射（35 intent → TaskSpec）+ UI 外壳（L0-L5 stack / BT viz /
+          五因素 / 事件流 / 意图按钮）
+  V0.7P  GitHub Pages workflow 自动部署
+
+迁移历史
+  2026-04-21  从 human-brain-interface-demo/WASM-TEST/ 迁移到独立仓库
+              github.com/jeffliulab/mujoco-browser，原 WASM-TEST/ 清理

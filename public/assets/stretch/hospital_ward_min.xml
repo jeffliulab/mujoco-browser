@@ -1,0 +1,138 @@
+<mujoco model="hospital_ward_min_v0">
+  <!-- Phase 0F minimal scene: matches demo/core/assets/scenes/hospital_ward.xml
+       topologically (bed / patient / nightstand / cup / chair / tv / nurse mocap
+       / 5 cameras / lights) but replaces every madduck mesh with a primitive
+       box so we can load it without the 50-100MB furniture asset pack that
+       only lives on Hetzner.
+
+       Uses stretch_mj_3.3.0.xml (MJ 3.3 inertia="shell" form) — the old
+       stretch.xml's shellinertia="true" attribute is rejected by mujoco-js. -->
+
+  <include file="stretch_mj_3.3.0.xml"/>
+
+  <statistic center="2.5 0 1.0" extent="6" meansize="0.1"/>
+
+  <visual>
+    <headlight diffuse="0.7 0.7 0.7" ambient="0.45 0.45 0.45" specular="0.1 0.1 0.1"/>
+    <rgba haze="0.85 0.87 0.92 1"/>
+    <global azimuth="90" elevation="-25" offwidth="1280" offheight="720"/>
+  </visual>
+
+  <asset>
+    <!-- Stand-in materials for every madduck mesh we dropped. -->
+    <material name="cup_mat"       rgba="0.25 0.60 0.85 1"/>
+    <material name="skin"          rgba="0.95 0.80 0.70 1"/>
+    <material name="gown"          rgba="0.55 0.78 0.88 1"/>
+    <material name="floor_mat"     rgba="0.88 0.88 0.90 1" reflectance="0.10"/>
+    <material name="wall_mat"      rgba="0.95 0.94 0.90 1"/>
+    <material name="ceiling_mat"   rgba="0.96 0.96 0.98 0.55"/>
+    <material name="ceillight_mat" rgba="1.0 0.95 0.80 1" emission="0.4"/>
+    <material name="bed_mat"       rgba="0.80 0.82 0.88 1"/>
+    <material name="chair_mat"     rgba="0.55 0.40 0.30 1"/>
+    <material name="cabinet_mat"   rgba="0.75 0.65 0.52 1"/>
+    <material name="ivpole_mat"    rgba="0.82 0.82 0.85 1"/>
+    <material name="door_mat"      rgba="0.72 0.56 0.40 1"/>
+
+    <texture type="skybox" builtin="gradient" rgb1="0.88 0.92 0.96" rgb2="1 1 1" width="512" height="3072"/>
+  </asset>
+
+  <worldbody>
+    <light name="room_amb_0" pos="1.5  0   2.4" dir="0 0 -1" directional="true" diffuse="0.45 0.45 0.45"/>
+    <light name="room_amb_1" pos="3.5  0   2.4" dir="0 0 -1" directional="true" diffuse="0.45 0.45 0.45"/>
+    <light name="room_amb_2" pos="2.5 -1.5 2.2" dir="0 0.4 -1" diffuse="0.25 0.25 0.30"/>
+
+    <!-- Floor -->
+    <body name="floor_group">
+      <geom name="floor_plane" type="plane" pos="2.25 0 0" size="3.25 2.5 0.05"
+            material="floor_mat" contype="1" conaffinity="1"/>
+    </body>
+
+    <!-- Walls: simple boxes around X in [-0.5,5.5], Y in [-2,2], height 2.5 -->
+    <body name="walls">
+      <geom type="box" pos="2.5  2.0 1.25" size="3.0 0.08 1.25" material="wall_mat" contype="1" conaffinity="1"/>
+      <geom type="box" pos="2.5 -2.0 1.25" size="3.0 0.08 1.25" material="wall_mat" contype="1" conaffinity="1"/>
+      <geom type="box" pos="5.5  0.0 1.25" size="0.08 2.0 1.25" material="wall_mat" contype="1" conaffinity="1"/>
+      <!-- Front wall with doorway gap around Y=+1 -->
+      <geom type="box" pos="-0.5 -1.0 1.25" size="0.08 1.0 1.25" material="wall_mat" contype="1" conaffinity="1"/>
+    </body>
+
+    <!-- Ceiling (simple transparent box so top_down camera still sees inside) -->
+    <body name="ceiling_group">
+      <geom name="ceil_slab" type="box" pos="2.5 0 2.55" size="3.0 2.0 0.05"
+            material="ceiling_mat" contype="0" conaffinity="0"/>
+      <geom name="ceil_light_geom_0" type="box" pos="1.2 0 2.48" size="0.30 0.10 0.02"
+            material="ceillight_mat" contype="0" conaffinity="0"/>
+      <geom name="ceil_light_geom_1" type="box" pos="3.5 0 2.48" size="0.30 0.10 0.02"
+            material="ceillight_mat" contype="0" conaffinity="0"/>
+    </body>
+
+    <light name="ceil_pt_0" pos="1.5 0 2.4" dir="0 0 -1" diffuse="0.35 0.35 0.33" specular="0.1 0.1 0.1"/>
+    <light name="ceil_pt_1" pos="3.5 0 2.4" dir="0 0 -1" diffuse="0.35 0.35 0.33" specular="0.1 0.1 0.1"/>
+
+    <!-- Bed (box stand-in, same collision footprint as original) -->
+    <body name="bed" pos="3.8 0 0.33">
+      <geom type="box" size="0.95 0.48 0.30" material="bed_mat" contype="0" conaffinity="0"/>
+      <geom name="bed_col" type="box" pos="0 0 0.22" size="0.95 0.48 0.08" rgba="0 0 0 0" contype="1" conaffinity="1"/>
+    </body>
+
+    <!-- Patient lying on the bed -->
+    <body name="patient" pos="3.8 0 0.61">
+      <geom type="capsule" fromto="-0.3 0 0  0.3 0 0" size="0.15" material="gown"/>
+      <geom type="sphere" pos="0.47 0 0.02" size="0.10" material="skin"/>
+      <geom type="capsule" fromto="0.1  0.20 0.02  -0.2  0.25 0" size="0.05" material="gown"/>
+      <geom type="capsule" fromto="0.1 -0.20 0.02  -0.2 -0.25 0" size="0.05" material="gown"/>
+      <geom type="capsule" fromto="-0.3 0.10 0.02 -0.72 0.12 0" size="0.07" material="gown"/>
+      <geom type="capsule" fromto="-0.3 -0.10 0.02 -0.72 -0.12 0" size="0.07" material="gown"/>
+    </body>
+
+    <body name="nightstand" pos="3.8 0.65 0.506">
+      <geom type="box" size="0.28 0.14 0.42" material="cabinet_mat" contype="0" conaffinity="0"/>
+      <geom name="cab_col" type="box" pos="0 0 0.28" size="0.28 0.14 0.01" rgba="0 0 0 0" contype="1" conaffinity="1"/>
+    </body>
+
+    <body name="cup" pos="3.80 0.65 0.85">
+      <freejoint/>
+      <geom name="cup_body" type="cylinder" size="0.04 0.055" mass="0.18" material="cup_mat"
+            friction="1.2 0.005 0.0001"/>
+    </body>
+
+    <body name="visitor_chair" pos="1.0 1.5 0.817">
+      <geom type="box" size="0.4 0.45 0.40" material="chair_mat" contype="0" conaffinity="0"/>
+      <geom type="box" pos="0 0 -0.4" size="0.4 0.45 0.4" rgba="0 0 0 0" contype="1" conaffinity="1"/>
+    </body>
+
+    <!-- Wall-mounted TV -->
+    <body name="tv" pos="3.0 1.95 1.5">
+      <geom name="tv_frame"  type="box" size="0.55 0.04 0.34" material="chair_mat" contype="0" conaffinity="0"/>
+      <geom name="tv_screen" type="box" pos="0 -0.045 0" size="0.50 0.005 0.30"
+            rgba="0.05 0.05 0.08 1" contype="0" conaffinity="0"/>
+    </body>
+
+    <!-- Nurse (mocap) — still needed by call_help skill -->
+    <body name="nurse" mocap="true" pos="-3 1 -10">
+      <geom type="capsule" fromto="0 0 0.10 0 0 0.90" size="0.10" rgba="0.95 0.95 1.0 1" contype="0" conaffinity="0"/>
+      <geom type="capsule" fromto="0 0 0.90 0 0 1.45" size="0.22" rgba="0.15 0.45 0.85 1" contype="0" conaffinity="0"/>
+      <geom type="sphere" pos="0 0 1.62" size="0.13" rgba="0.95 0.80 0.70 1" contype="0" conaffinity="0"/>
+      <geom type="sphere" pos="-0.03 0 1.69" size="0.115" rgba="0.30 0.20 0.15 1" contype="0" conaffinity="0"/>
+      <geom type="sphere" pos="0.115 -0.045 1.65" size="0.014" rgba="0.05 0.05 0.05 1" contype="0" conaffinity="0"/>
+      <geom type="sphere" pos="0.115  0.045 1.65" size="0.014" rgba="0.05 0.05 0.05 1" contype="0" conaffinity="0"/>
+      <geom type="box"    pos="0.122  0.000 1.55" size="0.022 0.005 0.005" rgba="0.55 0.20 0.20 1" contype="0" conaffinity="0"/>
+      <geom type="box" pos="0 0 1.78" size="0.10 0.10 0.025" rgba="1 1 1 1" contype="0" conaffinity="0"/>
+    </body>
+
+    <body name="iv_pole" pos="2.8 -0.9 1.152">
+      <freejoint/>
+      <inertial pos="0 0 0.6" mass="4.0" diaginertia="2.5 2.5 0.02"/>
+      <geom type="cylinder" pos="0 0 0" size="0.03 0.95" material="ivpole_mat" contype="0" conaffinity="0"/>
+      <geom type="cylinder" pos="0 0 -1.13" size="0.22 0.02" rgba="0 0 0 0" contype="1" conaffinity="1"/>
+    </body>
+
+    <!-- Cameras — preserved verbatim from hospital_ward.xml -->
+    <camera name="demo_view"    mode="targetbody" target="visitor_chair" pos="4.9 -1.85 2.2" fovy="85"/>
+    <camera name="top_down"     pos="2.25 0 5.5" xyaxes="1 0 0  0 1 0" fovy="70"/>
+    <camera name="grasp_view"   mode="targetbody" target="cup" pos="3.5 1.9 1.5" fovy="55"/>
+    <camera name="bedside_view" mode="targetbody" target="patient" pos="2.6 -1.0 1.4" fovy="65"/>
+    <camera name="tv_view"      mode="targetbody" target="tv" pos="3.0 0.3 1.3" fovy="55"/>
+  </worldbody>
+
+</mujoco>

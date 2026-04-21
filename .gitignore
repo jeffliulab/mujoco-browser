@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.vite/
+.env
+.env.local
+*.log
+.DS_Store
+tsconfig.tsbuildinfo
+
+# Vendor: mujoco-wasm build artifacts, regenerable via scripts/fetch-vendor.sh.
+vendor/
+
+# IDE
+.idea/
+.vscode/
+
+# Bundled Stretch assets under public/assets/stretch/ ARE committed on purpose
+# (97 MB, regenerable via `npm run bundle-assets` but committing them keeps
+# `npm run dev` working out of the box without a local stretch_mujoco clone).

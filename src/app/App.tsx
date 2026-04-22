@@ -10,18 +10,23 @@ interface SceneSpec {
   assetBundleUrl?: string;
 }
 
+// BASE is '/' in dev and whatever VITE_BASE was at build time in prod
+// (e.g. '/mujoco-browser/' when deploying to GitHub Pages under that subpath).
+// Always ends with '/' by Vite convention.
+const BASE = import.meta.env.BASE_URL;
+
 const AVAILABLE_SCENES: SceneSpec[] = [
-  { label: 'simple.xml (2-body)', url: 'assets/scenes/simple.xml' },
-  { label: 'humanoid.xml (complex)', url: 'assets/scenes/humanoid.xml' },
+  { label: 'simple.xml (2-body)', url: `${BASE}assets/scenes/simple.xml` },
+  { label: 'humanoid.xml (complex)', url: `${BASE}assets/scenes/humanoid.xml` },
   {
     label: 'stretch_mj_3.3.0.xml (robot only)',
-    url: 'assets/stretch/stretch_mj_3.3.0.xml',
-    assetBundleUrl: 'assets/stretch',
+    url: `${BASE}assets/stretch/stretch_mj_3.3.0.xml`,
+    assetBundleUrl: `${BASE}assets/stretch`,
   },
   {
     label: 'hospital_ward_min.xml (Phase 0F)',
-    url: 'assets/stretch/hospital_ward_min.xml',
-    assetBundleUrl: 'assets/stretch',
+    url: `${BASE}assets/stretch/hospital_ward_min.xml`,
+    assetBundleUrl: `${BASE}assets/stretch`,
   },
 ];
 

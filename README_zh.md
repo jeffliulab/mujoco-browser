@@ -2,7 +2,7 @@
 
 # mujoco-browser
 
-[![Vite](https://img.shields.io/badge/Vite-5-646cff?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev) [![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react&logoColor=black)](https://react.dev) [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org) [![Three.js](https://img.shields.io/badge/Three.js-0.161-000000?style=flat-square&logo=threedotjs&logoColor=white)](https://threejs.org) [![MuJoCo](https://img.shields.io/badge/MuJoCo-WASM-0f8653?style=flat-square)](https://github.com/google-deepmind/mujoco) [![License](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat-square)](#许可证) [![Status](https://img.shields.io/badge/status-V0.2%20进行中-yellow?style=flat-square)](docs/项目总进度.txt)
+[![在线 demo](https://img.shields.io/badge/在线%20demo-jeffliulab.github.io-22c55e?style=flat-square&logo=github)](https://jeffliulab.github.io/mujoco-browser/) [![Vite](https://img.shields.io/badge/Vite-5-646cff?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev) [![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react&logoColor=black)](https://react.dev) [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org) [![Three.js](https://img.shields.io/badge/Three.js-0.161-000000?style=flat-square&logo=threedotjs&logoColor=white)](https://threejs.org) [![MuJoCo](https://img.shields.io/badge/MuJoCo-WASM-0f8653?style=flat-square)](https://github.com/google-deepmind/mujoco) [![License](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat-square)](#许可证) [![Status](https://img.shields.io/badge/status-V0.2%20进行中-yellow?style=flat-square)](docs/项目总进度.txt)
 
 把 Anima BCI 具身机器人 demo 整套搬进浏览器：MuJoCo 物理、Three.js 渲染、Anima L0–L5 认知栈、py_trees 风格的行为树、10 个技能 —— 全部 TypeScript，零服务器、零 API key、零用户配置，可直接作为静态页面部署到 GitHub Pages。
 
@@ -10,11 +10,12 @@
 
 ## 亮点
 
+- 🌐 **在线 demo**：[jeffliulab.github.io/mujoco-browser](https://jeffliulab.github.io/mujoco-browser/) — 每次推 `main` 触发 GitHub Actions 自动部署
 - **浏览器里跑 MuJoCo**：`mujoco-js` 0.0.7 加载官方 Stretch RE3 机器人和降级版医院病房场景，60+ Hz 真物理步进
 - **渲染实时镜像**：每帧把 `data.geom_xpos / geom_xmat` 拷到 Three.js scene graph；6 种 primitive 几何体原生渲染，10 个 MJCF 相机可切换
 - **无服务器、无 LLM、无 Key**：L1 意图解析器是 35 个 intent 关键词映射表 —— 完全离线跑，运行时零 fetch
 - **Anima IP 保留**：L0–L5 层次划分、五因素事件触发评估（ITA / MQA / SQA / GOA / PEA）、Test-and-Check 六关校验、TaskSpec 中间表示、行为树执行
-- **静态部署**：`npm run build` 产物直接扔 GitHub Pages，无 CI 基础设施、无后端
+- **静态部署**：`npm run build` 产物直接扔 GitHub Pages，除一个 Actions workflow 外无额外 CI 基础设施、无后端
 
 ---
 

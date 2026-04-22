@@ -2,7 +2,7 @@
 
 # mujoco-browser
 
-[![Vite](https://img.shields.io/badge/Vite-5-646cff?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev) [![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react&logoColor=black)](https://react.dev) [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org) [![Three.js](https://img.shields.io/badge/Three.js-0.161-000000?style=flat-square&logo=threedotjs&logoColor=white)](https://threejs.org) [![MuJoCo](https://img.shields.io/badge/MuJoCo-WASM-0f8653?style=flat-square)](https://github.com/google-deepmind/mujoco) [![License](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat-square)](#license) [![Status](https://img.shields.io/badge/status-V0.2%20in--progress-yellow?style=flat-square)](docs/项目总进度.txt)
+[![Live demo](https://img.shields.io/badge/live%20demo-jeffliulab.github.io-22c55e?style=flat-square&logo=github)](https://jeffliulab.github.io/mujoco-browser/) [![Vite](https://img.shields.io/badge/Vite-5-646cff?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev) [![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react&logoColor=black)](https://react.dev) [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org) [![Three.js](https://img.shields.io/badge/Three.js-0.161-000000?style=flat-square&logo=threedotjs&logoColor=white)](https://threejs.org) [![MuJoCo](https://img.shields.io/badge/MuJoCo-WASM-0f8653?style=flat-square)](https://github.com/google-deepmind/mujoco) [![License](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat-square)](#license) [![Status](https://img.shields.io/badge/status-V0.2%20in--progress-yellow?style=flat-square)](docs/项目总进度.txt)
 
 Full in-browser port of the Anima BCI embodied-robotics demo: MuJoCo physics, Three.js rendering, the Anima L0–L5 cognitive stack, a py_trees-style behaviour tree, and 10 skills — all TypeScript, zero server, zero API key, zero user configuration, deployable to GitHub Pages as a pure static site.
 
@@ -10,11 +10,12 @@ Full in-browser port of the Anima BCI embodied-robotics demo: MuJoCo physics, Th
 
 ## Highlights
 
+- 🌐 **Live demo**: [jeffliulab.github.io/mujoco-browser](https://jeffliulab.github.io/mujoco-browser/) — auto-deployed from `main` on every push via GitHub Actions
 - **MuJoCo in the browser**: `mujoco-js` 0.0.7 runs the official Stretch RE3 robot model plus a degraded hospital-ward scene, stepping real physics at 60+ Hz
 - **Live rendering mirror**: per-frame `data.geom_xpos / geom_xmat` copied into a Three.js scene graph; all 6 primitive geom types render natively, 10 MJCF cameras selectable
 - **No server, no LLM, no keys**: L1 intent parser is a 35-token keyword mapper — runs fully offline, no fetch calls at runtime
 - **Anima IP preserved**: L0–L5 layer separation, 5-factor event-triggered assessment (ITA / MQA / SQA / GOA / PEA), Test-and-Check 6-gate validation, TaskSpec intermediate representation, behaviour-tree execution
-- **Static deploy target**: single `npm run build` → GitHub Pages, no CI infra, no backend
+- **Static deploy target**: single `npm run build` → GitHub Pages, no CI infra beyond a single Actions workflow, no backend
 
 ---
 

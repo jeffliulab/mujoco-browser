@@ -105,11 +105,22 @@ function buildGeomMesh(
   switch (type) {
     case MJ_GEOM.PLANE: {
       // size = [halfX, halfY, gridSpacing] — gridSpacing is cosmetic, skip.
+      // MuJoCo plane sits in its local XY plane with normal +Z. Three's
+      // PlaneGeometry is also XY with normal +Z by default, so we do NOT
+      // rotateX here — doing so would tip the floor 90° into a vertical wall
+      // in our Z-up world. Use DoubleSide so it renders even if the camera
+      // ends up on the other side (helps degraded-scene debugging).
       const sx = size[0] > 0 ? size[0] * 2 : 20;
       const sy = size[1] > 0 ? size[1] * 2 : 20;
-      const g = new THREE.PlaneGeometry(sx, sy);
-      g.rotateX(-Math.PI / 2);
-      return new THREE.Mesh(g, mat);
+      const planeMat = new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.9,
+        metalness: 0.02,
+        side: THREE.DoubleSide,
+        transparent: opacity < 1,
+        opacity,
+      });
+      return new THREE.Mesh(new THREE.PlaneGeometry(sx, sy), planeMat);
     }
     case MJ_GEOM.SPHERE:
       return new THREE.Mesh(new THREE.SphereGeometry(size[0], 24, 16), mat);
@@ -213,19 +224,31 @@ export async function mountMujocoScene(
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0b0d12);
 
-  // Ambient + key light. MJCF <light> export is a later improvement.
-  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-  const key = new THREE.DirectionalLight(0xffffff, 1.6);
-  key.position.set(3, 6, 4);
-  scene.add(key);
-  const fill = new THREE.DirectionalLight(0x88aaff, 0.4);
-  fill.position.set(-3, 4, -2);
-  scene.add(fill);
+  // Hemisphere light = cheap indirect fill that matches indoor lighting
+  // better than flat ambient (sky color from above, floor-bounce color from
+  // below). In Z-up world we orient via the light itself.
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x404050, 0.65);
+  hemi.position.set(0, 0, 5);
+  scene.add(hemi);
 
-  // Free orbit camera (no controls yet — fixed framing).
+  // Sun-style key light from above + front.
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+  keyLight.position.set(3, -4, 6);  // Z-up: high in +Z, front in -Y
+  scene.add(keyLight);
+
+  // Warm interior fill — a point light roughly at ceiling center — gives the
+  // room some modeled falloff without needing per-<light> MJCF port.
+  const ceilingLight = new THREE.PointLight(0xffe8b5, 1.4, 12, 1.2);
+  ceilingLight.position.set(2.5, 0, 2.3);
+  scene.add(ceilingLight);
+
+  // Free orbit camera. Set Z-up BEFORE lookAt so the orientation is
+  // computed in the correct frame (otherwise Three uses default +Y up and
+  // the roll is wrong after we later override .up).
   const freeCam = new THREE.PerspectiveCamera(50, 1, 0.05, 500);
-  freeCam.position.set(5.5, 3.2, 3.5);
-  freeCam.lookAt(2.5, 0.6, 0);
+  freeCam.up.set(0, 0, 1);
+  freeCam.position.set(6.2, -3.5, 2.4);  // outside the back wall, looking in
+  freeCam.lookAt(2.5, 0.3, 0.8);         // aim mid-room, ~person-height
 
   // Build one THREE.Mesh per geom.
   const geomMeshes: Array<{
@@ -245,21 +268,25 @@ export async function mountMujocoScene(
     const sy = geom_size[i * 3 + 1];
     const sz = geom_size[i * 3 + 2];
 
-    // Prefer geom_rgba, but fall back to material if rgba is all zero (the
-    // default when the MJCF uses material= without explicit rgba).
-    let r = geom_rgba[i * 4 + 0];
-    let g = geom_rgba[i * 4 + 1];
-    let b = geom_rgba[i * 4 + 2];
-    let a = geom_rgba[i * 4 + 3];
-    if (r === 0.5 && g === 0.5 && b === 0.5 && a === 1.0 && mat_rgba) {
-      // Three default-gray from mujoco — try material.
-      const mid = geom_matid[i];
-      if (mid >= 0) {
-        r = mat_rgba[mid * 4 + 0];
-        g = mat_rgba[mid * 4 + 1];
-        b = mat_rgba[mid * 4 + 2];
-        a = mat_rgba[mid * 4 + 3];
-      }
+    // Material > geom_rgba priority. If the geom specifies a material
+    // (geom_matid >= 0), use the material's rgba (this is how MuJoCo's own
+    // renderer resolves colors). Only fall back to geom_rgba when the geom
+    // has no material reference.
+    let r: number;
+    let g: number;
+    let b: number;
+    let a: number;
+    const mid = geom_matid[i];
+    if (mid >= 0 && mat_rgba) {
+      r = mat_rgba[mid * 4 + 0];
+      g = mat_rgba[mid * 4 + 1];
+      b = mat_rgba[mid * 4 + 2];
+      a = mat_rgba[mid * 4 + 3];
+    } else {
+      r = geom_rgba[i * 4 + 0];
+      g = geom_rgba[i * 4 + 1];
+      b = geom_rgba[i * 4 + 2];
+      a = geom_rgba[i * 4 + 3];
     }
     if (a <= 0) continue; // invisible collision-only geom
 

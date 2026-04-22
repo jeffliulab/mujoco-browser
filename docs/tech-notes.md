@@ -131,6 +131,88 @@ function xmat_to_matrix4(xmat: Float64Array, offset: number, out: THREE.Matrix4)
 
 `Matrix4.set` 的第一个参数是 row-major 顺序，所以填入时按行读 mujoco xmat 即可，Three 内部会自己换成列主序存储。
 
+## Three.js 渲染（Z-up 世界）
+
+### PlaneGeometry 不要 rotateX
+
+Three.PlaneGeometry 默认在 XY 平面、法向 +Z。Y-up 世界里为了做水平地板，常见写法是 `rotateX(-PI/2)` 把它立到 XZ 平面、法向 +Y。
+
+**本项目是 Z-up 世界**（MuJoCo 约定，相机 `.up.set(0,0,1)`），PlaneGeometry 原生就是水平地板，**不要 rotate**。如果 rotate 了，会被扭成竖直墙，渲染端看到的是地板背面（被 face culling）→ 整片黑。
+
+### Capsule / Cylinder 要 rotateX(+PI/2)
+
+MuJoCo capsule / cylinder 默认轴 +Z。Three CapsuleGeometry / CylinderGeometry 默认轴 +Y。所以 geometry 层需要 `rotateX(+PI/2)` 把 Y 轴对齐到 Z。
+
+Plane 和 capsule/cylinder 的差异：plane 有法向只有一个维度需要对齐，capsule 有轴向要对齐。
+
+### Camera `.up` 必须在 `lookAt` 之前设置
+
+```ts
+cam.up.set(0, 0, 1);
+cam.position.set(...);
+cam.lookAt(...);   // 用当前的 up 算 roll
+```
+
+顺序反了会导致相机 roll 错位——开机画面一片歪。
+
+### 相机的 forward
+
+MJCF `<camera mode="fixed">` 没有 target body。每帧想 `lookAt` 到哪儿？
+
+**从 `data.cam_xmat` 第三列取负号**得到相机在世界里的 forward 方向（MuJoCo 约定相机本地 -Z 朝向场景）：
+
+```ts
+const fx = -cam_xmat[i * 9 + 2];  // -(第0行第2列)
+const fy = -cam_xmat[i * 9 + 5];
+const fz = -cam_xmat[i * 9 + 8];
+target.set(camX + fx, camY + fy, camZ + fz);
+cam.lookAt(target);
+```
+
+targetbody 模式（mode=3/4）直接用目标 body 的 `data.xpos` 就行。
+
+## MJCF 材质 PBR 端口
+
+### 优先级
+
+每个 geom 的材质解析顺序：
+
+1. `geom_matid[i] >= 0` → 用 `mat_rgba[mid]` + 其它 PBR 字段
+2. 否则 → 用 `geom_rgba[i]`，PBR 用默认值
+
+**不要**用"geom_rgba 是不是默认 (0.5,0.5,0.5,1)"做判断——这会在用户故意指定灰色时错判。
+
+### 字段映射
+
+| MJCF / mujoco-js | Three.js | 备注 |
+|---|---|---|
+| `mat_rgba[mid]` | `MeshStandardMaterial.color` + `opacity` | RGB + alpha |
+| `mat_emission[mid]` | `emissive` + `emissiveIntensity` | intensity = `min(1.5, emission × 2.5)` — 无 bloom 时超过 ~1.5 不会更亮 |
+| `mat_roughness[mid]` (MJ 3.3) | `roughness` | 直接用 |
+| `mat_metallic[mid]` (MJ 3.3) | `metalness` | 直接用 |
+| `mat_reflectance[mid]` (legacy) | `roughness = max(0.12, 1 - refl × 1.8)` | fallback 当没有显式 roughness |
+
+默认值（geom 无 matid 时）：`roughness=0.65`, `metalness=0.04`。比 Three 自带默认（0.0/0.5 metalness）更接近 MuJoCo 原生的哑光外观。
+
+### `<texture>` 端口
+
+**当前没做真端口**（MJ 3.3 `model.tex_*` 字段全在，有 `tex_data` / `tex_width` / `tex_nchannel` 但需要自己从 buffer 构 `DataTexture`）。
+
+替代方案：
+
+- 天空：`makeSkyGradient()` 用 Canvas 画两色渐变 → `CanvasTexture` → `scene.background`
+- 地板：`makeCheckerTexture(baseColor, gridSpacing, sx, sy)` 用 Canvas 画同色系 checker
+
+未来如果要支持 robot 的 ArUco 贴纸等真 texture，需要：
+
+```ts
+// 伪代码
+const tex_data = model.tex_data as Uint8Array;  // 全部贴图的拼接 buffer
+const tex_adr  = model.tex_adr  as Int32Array;  // 第 i 张贴图的起点偏移
+const tex_width[i], tex_height[i], tex_nchannel[i]  // 尺寸
+// 切片 → new THREE.DataTexture(slice, w, h, RGBAFormat, UnsignedByteType)
+```
+
 ## 开发-验证-继续 pipeline
 
 用户明确过："如果验证通过则继续打桩然后到可运行，建立开发-验证-继续开发的循环 pipeline"。做法：

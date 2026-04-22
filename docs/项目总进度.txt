@@ -19,9 +19,14 @@ mujoco-browser 版本总览
 当前开发
   V0.2   Three.js 渲染器 + 机器人 mesh（进行中）
          详细任务 → 开发进度与待办事项.md
-         目标：
-           - Phase 1a 渲染器代码已就绪（mujoco_renderer.ts），用户视觉确认待完成
-           - Phase 1b OBJ/STL 加载器替换 3cm 占位小球为真实机器人网格
+         进度：
+           - Phase 1a 渲染器代码 + 视觉修复 ✅（2026-04-22）
+             · 初版渲染器上线 → 用户截图暴露 4 bug → 当天修完
+             · plane 法向 / 材质优先级 / 相机 up order / 光照
+             · MJCF 材质 PBR 端口（emission / reflectance / roughness / metalness）
+             · 程序化天空渐变 + 地板 checker 兜底 <texture> 管线
+           - Phase 1a 残余：家具仍是 box（madduck 真网格只在 Hetzner，非阻塞）
+           - Phase 1b OBJ/STL 加载器（机器人占位球 → 真模型）— 下次继续
 
   V0.7a  GitHub Pages 自动部署（2026-04-22 提前交付）
          - .github/workflows/deploy.yml：push to main → typecheck + smoke +

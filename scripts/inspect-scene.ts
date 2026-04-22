@@ -2,13 +2,13 @@
 // fields the Three.js mirror reads, so we catch stride/name-decode bugs
 // without needing a real browser.
 import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import load_mujoco from 'mujoco-js';
 
 const mujoco: any = await (load_mujoco as any)();
-const assetRoot = join(
-  '/Users/macbookpro/Local_Root/human-brain-interface-demo/WASM-TEST/public/assets/stretch',
-);
+const here = dirname(fileURLToPath(import.meta.url));
+const assetRoot = join(here, '..', 'public', 'assets', 'stretch');
 
 if (!mujoco.FS.analyzePath('/working').exists) {
   mujoco.FS.mkdir('/working');
@@ -99,6 +99,29 @@ for (let b = 0; b < nbody; b += 1) {
       `  ${bname}: (${xpos[b * 3].toFixed(3)}, ${xpos[b * 3 + 1].toFixed(3)}, ${xpos[b * 3 + 2].toFixed(3)})`,
     );
   }
+}
+
+// Material PBR probe — confirms the port reads non-zero emission / reflectance
+// values so the renderer has something to work with.
+const nmat = model.nmat as number;
+const name_matadr = model.name_matadr as Int32Array;
+const mat_emission = model.mat_emission as Float32Array;
+const mat_reflectance = model.mat_reflectance as Float32Array;
+const mat_rgba = model.mat_rgba as Float32Array;
+console.log(`\nMaterials (nmat=${nmat}):`);
+for (let m = 0; m < nmat; m += 1) {
+  const mname = decodeName(names, name_matadr[m]);
+  const em = mat_emission ? mat_emission[m] : 0;
+  const refl = mat_reflectance ? mat_reflectance[m] : 0;
+  const r = mat_rgba[m * 4 + 0].toFixed(2);
+  const g = mat_rgba[m * 4 + 1].toFixed(2);
+  const b = mat_rgba[m * 4 + 2].toFixed(2);
+  const a = mat_rgba[m * 4 + 3].toFixed(2);
+  const flags: string[] = [];
+  if (em > 0) flags.push(`emit=${em.toFixed(2)}`);
+  if (refl > 0) flags.push(`refl=${refl.toFixed(2)}`);
+  const flagStr = flags.length ? ` [${flags.join(' ')}]` : '';
+  console.log(`  [${m.toString().padStart(2)}] ${mname.padEnd(16)} rgba=(${r},${g},${b},${a})${flagStr}`);
 }
 
 process.exit(0);

@@ -87,40 +87,63 @@ function readName(names: Uint8Array, offset: number): string {
   return new TextDecoder().decode(names.subarray(offset, end));
 }
 
+interface GeomLook {
+  rgba: [number, number, number, number];
+  emission: number;        // 0..n, 0 = non-emissive
+  roughness: number;       // 0 (mirror) .. 1 (fully matte)
+  metalness: number;       // 0 (dielectric) .. 1 (metallic)
+}
+
 function buildGeomMesh(
   type: number,
   size: [number, number, number],
-  rgba: [number, number, number, number],
+  look: GeomLook,
 ): THREE.Object3D | null {
+  const { rgba, emission, roughness, metalness } = look;
   const color = new THREE.Color(rgba[0], rgba[1], rgba[2]);
   const opacity = rgba[3];
-  const mat = new THREE.MeshStandardMaterial({
+  const matProps: THREE.MeshStandardMaterialParameters = {
     color,
-    roughness: 0.75,
-    metalness: 0.05,
+    roughness,
+    metalness,
     transparent: opacity < 1,
     opacity,
-  });
+  };
+  if (emission > 0) {
+    matProps.emissive = color.clone();
+    // MJCF emission is 0..1-ish fraction; MeshStandardMaterial caps visual
+    // benefit around intensity 1.5 without bloom post-processing.
+    matProps.emissiveIntensity = Math.min(1.5, emission * 2.5);
+  }
+  const mat = new THREE.MeshStandardMaterial(matProps);
 
   switch (type) {
     case MJ_GEOM.PLANE: {
-      // size = [halfX, halfY, gridSpacing] — gridSpacing is cosmetic, skip.
+      // size = [halfX, halfY, gridSpacing] — gridSpacing drives checker scale.
       // MuJoCo plane sits in its local XY plane with normal +Z. Three's
       // PlaneGeometry is also XY with normal +Z by default, so we do NOT
       // rotateX here — doing so would tip the floor 90° into a vertical wall
-      // in our Z-up world. Use DoubleSide so it renders even if the camera
-      // ends up on the other side (helps degraded-scene debugging).
+      // in our Z-up world.
       const sx = size[0] > 0 ? size[0] * 2 : 20;
       const sy = size[1] > 0 ? size[1] * 2 : 20;
-      const planeMat = new THREE.MeshStandardMaterial({
+      const gridSpacing = size[2] > 0 ? size[2] : 0.5;
+      const planeMatProps: THREE.MeshStandardMaterialParameters = {
         color,
-        roughness: 0.9,
-        metalness: 0.02,
+        roughness,
+        metalness,
         side: THREE.DoubleSide,
         transparent: opacity < 1,
         opacity,
-      });
-      return new THREE.Mesh(new THREE.PlaneGeometry(sx, sy), planeMat);
+      };
+      if (emission > 0) {
+        planeMatProps.emissive = color.clone();
+        planeMatProps.emissiveIntensity = Math.min(1.5, emission * 2.5);
+      }
+      // Procedural checkerboard texture — gives the floor a sense of scale
+      // even without the MJCF <texture> pipeline. Uses the geom color tinted
+      // light/dark so it looks integrated rather than grafted on.
+      planeMatProps.map = makeCheckerTexture(color, gridSpacing, sx, sy);
+      return new THREE.Mesh(new THREE.PlaneGeometry(sx, sy), new THREE.MeshStandardMaterial(planeMatProps));
     }
     case MJ_GEOM.SPHERE:
       return new THREE.Mesh(new THREE.SphereGeometry(size[0], 24, 16), mat);
@@ -160,6 +183,63 @@ function buildGeomMesh(
     default:
       return null;
   }
+}
+
+// Build a soft checker texture tinted around a base color. Used as a
+// programmatic stand-in for MuJoCo's default floor checker while we don't
+// yet port the full <texture> pipeline.
+function makeCheckerTexture(
+  base: THREE.Color,
+  gridSpacing: number,
+  sx: number,
+  sy: number,
+): THREE.CanvasTexture {
+  // Keep pixel cost low — 256 square resolution is enough for an area floor.
+  const res = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = res;
+  canvas.height = res;
+  const ctx = canvas.getContext('2d')!;
+
+  const baseHex = `rgb(${Math.round(base.r * 255)},${Math.round(base.g * 255)},${Math.round(base.b * 255)})`;
+  const darkHex = `rgb(${Math.round(base.r * 255 * 0.88)},${Math.round(base.g * 255 * 0.88)},${Math.round(base.b * 255 * 0.90)})`;
+
+  ctx.fillStyle = baseHex;
+  ctx.fillRect(0, 0, res, res);
+  ctx.fillStyle = darkHex;
+  const cell = res / 2;
+  ctx.fillRect(0, 0, cell, cell);
+  ctx.fillRect(cell, cell, cell, cell);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  // Tile count across the plane: use gridSpacing as stride in world units.
+  const repeatU = Math.max(1, Math.round(sx / Math.max(gridSpacing, 0.1) / 2));
+  const repeatV = Math.max(1, Math.round(sy / Math.max(gridSpacing, 0.1) / 2));
+  tex.repeat.set(repeatU, repeatV);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+// Build a vertical gradient texture for the scene background — a warm-ish
+// neutral that mimics the default MuJoCo sky without trying to port the
+// MJCF <texture type="skybox"> cubemap.
+function makeSkyGradient(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 2;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d')!;
+  const grad = ctx.createLinearGradient(0, 0, 0, 256);
+  grad.addColorStop(0, '#dde6f0');   // top: soft blue-grey
+  grad.addColorStop(0.6, '#f4f2ec'); // mid: warm off-white
+  grad.addColorStop(1, '#c9c0b0');   // bottom: dim warm fill
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 2, 256);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
 // mj xmat is a 9-element row-major 3x3; Three uses a 16-element column-major 4x4.
@@ -222,7 +302,7 @@ export async function mountMujocoScene(
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0b0d12);
+  scene.background = makeSkyGradient();
 
   // Hemisphere light = cheap indirect fill that matches indoor lighting
   // better than flat ambient (sky color from above, floor-bounce color from
@@ -261,6 +341,14 @@ export async function mountMujocoScene(
   const geom_rgba = model.geom_rgba as Float32Array;
   const geom_matid = model.geom_matid as Int32Array;
   const mat_rgba = model.mat_rgba as Float32Array | null;
+  const mat_emission = model.mat_emission as Float32Array | null;
+  const mat_reflectance = model.mat_reflectance as Float32Array | null;
+  const mat_roughness = model.mat_roughness as Float32Array | null;
+  const mat_metallic = model.mat_metallic as Float32Array | null;
+
+  // Default PBR values when a geom has no material attached.
+  const DEFAULT_ROUGHNESS = 0.65;
+  const DEFAULT_METALNESS = 0.04;
 
   for (let i = 0; i < ngeom; i += 1) {
     const type = geom_type[i];
@@ -269,19 +357,33 @@ export async function mountMujocoScene(
     const sz = geom_size[i * 3 + 2];
 
     // Material > geom_rgba priority. If the geom specifies a material
-    // (geom_matid >= 0), use the material's rgba (this is how MuJoCo's own
-    // renderer resolves colors). Only fall back to geom_rgba when the geom
-    // has no material reference.
-    let r: number;
-    let g: number;
-    let b: number;
-    let a: number;
+    // (geom_matid >= 0), use the material's rgba + PBR params; otherwise
+    // fall back to geom_rgba with default PBR values.
+    let r: number, g: number, b: number, a: number;
+    let emission = 0;
+    let roughness = DEFAULT_ROUGHNESS;
+    let metalness = DEFAULT_METALNESS;
+
     const mid = geom_matid[i];
     if (mid >= 0 && mat_rgba) {
       r = mat_rgba[mid * 4 + 0];
       g = mat_rgba[mid * 4 + 1];
       b = mat_rgba[mid * 4 + 2];
       a = mat_rgba[mid * 4 + 3];
+
+      if (mat_emission) emission = mat_emission[mid] ?? 0;
+
+      // Prefer MuJoCo 3.3's explicit PBR fields; otherwise derive a sensible
+      // roughness from legacy reflectance (reflectance=0.1 → roughness ~0.82).
+      const explicitRough = mat_roughness ? mat_roughness[mid] : 0;
+      const explicitMetal = mat_metallic ? mat_metallic[mid] : 0;
+      const reflectance = mat_reflectance ? mat_reflectance[mid] : 0;
+      if (explicitRough > 0) {
+        roughness = explicitRough;
+      } else if (reflectance > 0) {
+        roughness = Math.max(0.12, 1 - reflectance * 1.8);
+      }
+      if (explicitMetal > 0) metalness = explicitMetal;
     } else {
       r = geom_rgba[i * 4 + 0];
       g = geom_rgba[i * 4 + 1];
@@ -290,7 +392,12 @@ export async function mountMujocoScene(
     }
     if (a <= 0) continue; // invisible collision-only geom
 
-    const mesh = buildGeomMesh(type, [sx, sy, sz], [r, g, b, a]);
+    const mesh = buildGeomMesh(type, [sx, sy, sz], {
+      rgba: [r, g, b, a],
+      emission,
+      roughness,
+      metalness,
+    });
     if (!mesh) continue;
     mesh.matrixAutoUpdate = false;
     scene.add(mesh);
